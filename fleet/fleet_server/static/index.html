@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet Dashboard</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --muted: #646d78; --border: #dfe3e8;
+    --floor: #eef1f4; --rack: #b9c1ca; --station: #3b6fd8; --charger: #1f9d55;
+    --idle: #3b6fd8; --busy: #d97706; --charging: #1f9d55; --offline: #9aa3ad; --danger: #c93c3c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101317; --panel: #181c21; --text: #e6e9ed; --muted: #9099a4; --border: #2a3038;
+      --floor: #1d2228; --rack: #3d4550; --station: #6b98f0; --charger: #3fbf77;
+      --idle: #6b98f0; --busy: #f0a43a; --charging: #3fbf77; --offline: #5d6670; --danger: #e06464;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; }
+  #conn { font-size: 12px; color: var(--muted); }
+  #conn.live::before { content: "● "; color: var(--charging); }
+  #conn.down::before { content: "● "; color: var(--danger); }
+  .stats { display: flex; gap: 14px; margin-left: auto; font-size: 13px; color: var(--muted); }
+  .stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+  main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr); gap: 16px; padding: 16px 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 12px 16px; } }
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+  section h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  canvas { width: 100%; display: block; border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  td { padding: 5px 6px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  .scroll { max-height: 260px; overflow: auto; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; color: #fff; }
+  .idle { background: var(--idle); } .busy { background: var(--busy); } .charging { background: var(--charging); }
+  .offline { background: var(--offline); } .queued { background: var(--offline); } .active { background: var(--busy); }
+  .completed { background: var(--charging); } .failed { background: var(--danger); } .canceled { background: var(--offline); }
+  .bar { width: 60px; height: 6px; background: var(--border); border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 6px; }
+  .bar i { display: block; height: 100%; border-radius: 3px; }
+  form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  select, input, button { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+  input[type=number] { width: 64px; }
+  button { cursor: pointer; background: var(--station); color: #fff; border-color: transparent; }
+  button.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+  button.link { background: none; border: none; color: var(--danger); padding: 0; font-size: 12px; }
+  #events { font: 12px/1.5 ui-monospace, monospace; color: var(--muted); max-height: 200px; overflow: auto; }
+  #error { color: var(--danger); font-size: 12px; min-height: 1em; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Fleet Dashboard</h1>
+  <span id="conn" class="down">connecting…</span>
+  <div class="stats" id="stats"></div>
+</header>
+<main>
+  <div class="col">
+    <section><h2>Live map</h2><canvas id="map"></canvas></section>
+    <section><h2>Events</h2><div id="events"></div></section>
+  </div>
+  <div class="col">
+    <section>
+      <h2>New task</h2>
+      <form id="task-form">
+        <select id="pickup" aria-label="Pickup"></select> →
+        <select id="dropoff" aria-label="Dropoff"></select>
+        <input id="priority" type="number" value="0" min="0" max="10" aria-label="Priority" title="Priority">
+        <button type="submit">Queue</button>
+        <button type="button" class="ghost" id="random">+5 random</button>
+      </form>
+      <div id="error"></div>
+    </section>
+    <section><h2>Robots</h2>
+      <table><thead><tr><th>Robot</th><th>Status</th><th>Battery</th><th>Doing</th></tr></thead><tbody id="robots"></tbody></table>
+    </section>
+    <section><h2>Tasks</h2><div class="scroll">
+      <table><thead><tr><th>Task</th><th>Route</th><th>Status</th><th>Robot</th><th></th></tr></thead><tbody id="tasks"></tbody></table>
+    </div></section>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let map = null, state = null;
+
+async function init() {
+  map = await (await fetch("/api/map")).json();
+  $("title").textContent = `Fleet Dashboard · ${map.name}`;
+  const opts = Object.keys(map.stations).map((s) => `<option>${esc(s)}</option>`).join("");
+  $("pickup").innerHTML = opts; $("dropoff").innerHTML = opts;
+  $("dropoff").selectedIndex = Object.keys(map.stations).length - 1;
+  connect();
+  window.addEventListener("resize", draw);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+}
+
+function connect() {
+  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/dashboard`);
+  ws.onopen = () => { $("conn").textContent = "live"; $("conn").className = "live"; };
+  ws.onmessage = (e) => { state = JSON.parse(e.data); render(); };
+  ws.onclose = () => { $("conn").textContent = "disconnected, retrying…"; $("conn").className = "down"; setTimeout(connect, 2000); };
+}
+
+async function submit(pickup, dropoff, priority) {
+  const res = await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pickup, dropoff, priority }) });
+  $("error").textContent = res.ok ? "" : (await res.json()).detail;
+}
+
+$("task-form").onsubmit = (e) => { e.preventDefault(); submit($("pickup").value, $("dropoff").value, +$("priority").value); };
+$("random").onclick = () => {
+  const names = Object.keys(map.stations);
+  for (let i = 0; i < 5; i++) {
+    const p = names[Math.floor(Math.random() * names.length)];
+    let d = p; while (d === p) d = names[Math.floor(Math.random() * names.length)];
+    submit(p, d, Math.random() < 0.2 ? 5 : 0);
+  }
+};
+window.cancelTask = (id) => fetch(`/api/tasks/${id}/cancel`, { method: "POST" });
+
+function render() {
+  const c = state.task_counts;
+  $("stats").innerHTML = `<span>Robots <b>${state.robots.length}</b></span><span>Queued <b>${c.queued}</b></span>` +
+    `<span>Active <b>${c.active}</b></span><span>Done <b>${c.completed}</b></span><span>Failed <b>${c.failed}</b></span>`;
+  $("robots").innerHTML = state.robots.map((r) => `<tr><td>${esc(r.id)}</td><td><span class="pill ${r.status}">${r.status}</span></td>` +
+    `<td><span class="bar"><i style="width:${r.battery}%;background:${r.battery < 25 ? css("--danger") : css("--charging")}"></i></span>${r.battery.toFixed(0)}%</td>` +
+    `<td>${esc(r.task_id ? `${r.task_id} → ${r.goal_label ?? ""}` : r.goal_label ?? "")}</td></tr>`).join("");
+  $("tasks").innerHTML = state.tasks.map((t) => `<tr><td>${esc(t.id)}${t.priority ? " ⚑" : ""}</td><td>${esc(t.pickup)} → ${esc(t.dropoff)}</td>` +
+    `<td><span class="pill ${t.status}" title="${esc(t.error)}">${t.status}</span></td><td>${esc(t.robot_id)}</td>` +
+    `<td>${["queued", "active"].includes(t.status) ? `<button class="link" onclick="cancelTask('${esc(t.id)}')">cancel</button>` : ""}</td></tr>`).join("");
+  $("events").innerHTML = state.events.slice().reverse().map((e) =>
+    `<div>${new Date(e.t * 1000).toLocaleTimeString()}  ${esc(e.msg)}</div>`).join("");
+  draw();
+}
+
+function draw() {
+  if (!map) return;
+  const canvas = $("map"), [W, H] = map.size, dpr = devicePixelRatio || 1;
+  const cssW = canvas.clientWidth, s = cssW / W;
+  canvas.style.height = `${H * s}px`; canvas.width = cssW * dpr; canvas.height = H * s * dpr;
+  const g = canvas.getContext("2d");
+  g.setTransform(dpr * s, 0, 0, -dpr * s, 0, H * s * dpr); // metres, y up
+  g.fillStyle = css("--floor"); g.fillRect(0, 0, W, H);
+  g.fillStyle = css("--rack"); for (const [x, y, w, h] of map.obstacles) g.fillRect(x, y, w, h);
+
+  const label = (text, x, y, color) => {
+    g.save(); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = color; g.font = "11px system-ui";
+    g.fillText(text, x * s + 8, (H - y) * s + 4); g.restore();
+  };
+  for (const [n, p] of Object.entries(map.stations)) {
+    g.fillStyle = css("--station"); g.fillRect(p.x - 0.18, p.y - 0.18, 0.36, 0.36); label(n, p.x, p.y, css("--muted"));
+  }
+  for (const [n, p] of Object.entries(map.chargers)) {
+    g.strokeStyle = css("--charger"); g.lineWidth = 0.06; g.strokeRect(p.x - 0.3, p.y - 0.3, 0.6, 0.6); label(n, p.x, p.y, css("--muted"));
+  }
+  if (!state) return;
+  for (const r of state.robots) {
+    const { x, y, yaw } = r.pose, color = css(`--${r.status}`);
+    const goal = r.goal_label && (map.stations[r.goal_label] || map.chargers[r.goal_label]);
+    if (goal) { g.strokeStyle = color; g.lineWidth = 0.03; g.setLineDash([0.15, 0.12]); g.beginPath(); g.moveTo(x, y); g.lineTo(goal.x, goal.y); g.stroke(); g.setLineDash([]); }
+    g.fillStyle = color; g.beginPath(); g.arc(x, y, 0.3, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = css("--panel"); g.lineWidth = 0.06; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 0.3 * Math.cos(yaw), y + 0.3 * Math.sin(yaw)); g.stroke();
+    label(`${r.id} ${r.battery.toFixed(0)}%`, x + 0.15, y + 0.45, css("--text"));
+  }
+}
+
+init();
+</script>
+</body>
+</html>

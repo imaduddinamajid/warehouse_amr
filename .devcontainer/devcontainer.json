@@ -1,0 +1,19 @@
+{
+  "name": "warehouse_amr (ROS 2 Jazzy)",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "..",
+    "target": "dev"
+  },
+  "remoteUser": "ubuntu",
+  "updateRemoteUserUID": true,
+  "postCreateCommand": "bash -c 'source /opt/ros/jazzy/setup.bash && colcon build --symlink-install --base-paths warehouse_package' && echo 'source ${containerWorkspaceFolder}/install/setup.bash' >> ~/.bashrc",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.flake8"
+      ]
+    }
+  }
+}

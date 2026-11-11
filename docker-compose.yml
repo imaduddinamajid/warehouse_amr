@@ -1,0 +1,21 @@
+services:
+  # Nav2 + Gazebo desktop in the browser: http://localhost:8080
+  sim:
+    build:
+      context: .
+      target: sim
+    ports:
+      - "8080:80"    # Web browser VNC interface
+      - "5900:5900"  # Standard VNC Client port
+    volumes:
+      - ./warehouse_package:/ros2_ws/src/warehouse_package
+    shm_size: 512m
+    security_opt:
+      - seccomp:unconfined
+    tty: true
+
+  # Headless robot-side node, same image CI pushes to GHCR
+  runtime:
+    build:
+      context: .
+      target: runtime

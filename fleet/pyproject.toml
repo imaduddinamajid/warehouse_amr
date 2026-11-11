@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fleet-server"
+version = "0.1.0"
+description = "Task allocation, monitoring and a live dashboard for a fleet of warehouse robots"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "websockets>=13",
+  "pydantic>=2.6",
+  "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+fleet-server = "fleet_server.__main__:main"
+fleet-mock-robots = "fleet_server.mock_robot:main"
+
+[tool.setuptools.packages.find]
+include = ["fleet_server*"]
+
+[tool.setuptools.package-data]
+fleet_server = ["static/*", "config/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

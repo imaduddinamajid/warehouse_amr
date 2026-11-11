@@ -1,0 +1,33 @@
+# Demo warehouse layout (metres, map frame).
+# When the Gazebo world lands, update these coordinates to match it --
+# nothing else in the fleet server is tied to a specific map.
+name: demo-warehouse
+size: [16, 10]
+
+stations:
+  shelf_a: {x: 5.0, y: 5.6}
+  shelf_b: {x: 8.5, y: 5.6}
+  shelf_c: {x: 5.0, y: 8.2}
+  shelf_d: {x: 8.5, y: 8.2}
+  shelf_e: {x: 12.5, y: 7.0}
+  packing: {x: 11.0, y: 1.5}
+  dock_1: {x: 14.8, y: 2.0}
+  dock_2: {x: 14.8, y: 4.5}
+
+# Fewer chargers than robots on purpose, so charger contention shows up.
+chargers:
+  charger_1: {x: 1.0, y: 1.0}
+  charger_2: {x: 1.0, y: 2.6}
+  charger_3: {x: 1.0, y: 4.2}
+
+# Shelf racks as [x, y, width, height]; drawn on the dashboard only.
+obstacles:
+  - [4.0, 4.0, 6.0, 0.8]
+  - [4.0, 6.6, 6.0, 0.8]
+  - [12.0, 5.0, 1.0, 1.4]
+
+battery:
+  drain_per_meter: 1.0  # % battery per metre driven
+  reserve: 10.0         # never plan a trip that ends below this
+  low: 25.0             # send an idle robot to charge below this
+  charged: 90.0         # release a charging robot back to work at this
