@@ -8,7 +8,10 @@ Gazebo, and (eventually) real hardware.
 > **Status:** fleet server, mock robots and dashboard are working and tested.
 > ROS 2 / Nav2 integration in Gazebo is in progress — see [Roadmap](#roadmap).
 
-<!-- TODO: add a dashboard GIF here: docs/dashboard.gif -->
+![Fleet dashboard: five robots taking jobs, queueing for three chargers, dropping offline and recovering](docs/dashboard.gif)
+
+*Five mock robots, three chargers. Robots too low on battery wait for a free charger;
+when every robot disconnects, their jobs are requeued and reassigned on reconnect.*
 
 ## What it does
 
