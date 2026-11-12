@@ -134,9 +134,15 @@ Robots connect to `ws://<server>/ws/robot/<robot_id>`:
 - [x] Live dashboard
 - [x] Mock robots + test suite + CI
 - [x] ROS 2 Jazzy workspace: multi-stage Docker, devcontainer, colcon CI, GHCR images
+### Next
+
 - [ ] ROS 2 robot agent: bridges the protocol to Nav2 `NavigateToPose` and AMCL pose
 - [ ] Multi-robot Gazebo simulation (ROS 2 Jazzy, Gazebo Harmonic, Nav2, TurtleBot)
+- [ ] VDA 5050 bridge: drive any VDA 5050-compliant AGV/AMR over MQTT, with a
+      compliance test suite for robot integrations
+
+### Later
+
 - [ ] MCAP recording of every run + Foxglove layout for replay
 - [ ] Traffic management on a lane graph (avoid head-on deadlocks in aisles)
 - [ ] Persistence (Postgres) and Prometheus metrics
-- [ ] Open-RMF fleet adapter for interoperability
